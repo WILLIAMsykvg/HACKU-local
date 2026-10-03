@@ -14,6 +14,7 @@ export const TIE_HKD = 10;
 
 export interface Brief {
   query: string;
+  /** 单价上限。总额是否超出授权由规则引擎判断，不在这里拦 */
   max_price_hkd?: number;
   /** 规格要求，例如 "65W"。商品标题里要出现 */
   must_include?: string[];
@@ -50,7 +51,7 @@ export interface Comparison {
 }
 
 export const RULE_TEXT =
-  `先排除缺货、超预算、规格不符的；剩下的按总价从低到高排；` +
+  `先排除缺货、单价超预算、规格不符的；剩下的按总价从低到高排；总额是否超出授权由规则引擎判断；` +
   `相差不到 HK$${TIE_HKD} 时熟客店优先（少问你一次）；卖家付费不影响排序。`;
 
 function money(n: number): string {
@@ -86,9 +87,8 @@ export function compareOffers(
   for (const l of unique) {
     const missed: string[] = [];
     if (!l.available) missed.push("缺货");
-    const total = l.price_hkd * brief.qty;
-    if (brief.max_price_hkd !== undefined && total > brief.max_price_hkd) {
-      missed.push(`总价 ${money(total)} 超过预算 ${money(brief.max_price_hkd)}`);
+    if (brief.max_price_hkd !== undefined && l.price_hkd > brief.max_price_hkd) {
+      missed.push(`单价 ${money(l.price_hkd)} 超过预算 ${money(brief.max_price_hkd)}`);
     }
     for (const need of brief.must_include ?? []) {
       // 「禮盒|禮物盒」表示几种写法任一即可

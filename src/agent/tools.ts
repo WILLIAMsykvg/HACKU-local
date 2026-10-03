@@ -45,7 +45,7 @@ export const TOOL_SPECS: ToolSpec[] = [
         type: "object",
         properties: {
           product_urls: { type: "array", items: { type: "string" }, description: `最多 ${MAX_COMPARE} 个商品网址` },
-          max_price_hkd: { type: "number" },
+          max_price_hkd: { type: "number", description: "单件价格上限（港币）" },
           must_include: { type: "array", items: { type: "string" }, description: "标题里必须出现的规格，例如 [\"65W\"]；几种写法任一即可时用竖线分隔，例如 [\"禮盒|禮物盒\"]" },
           qty: { type: "integer", minimum: 1, maximum: 5 },
         },

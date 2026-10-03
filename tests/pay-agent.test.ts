@@ -155,6 +155,15 @@ test("P10 比价：淘汰缺货、超预算、规格不符的，并写明原因"
   assert.ok(cmp.rejected.find((r) => r.listing.title === "65W Mini")?.missed.includes("缺货"));
 });
 
+test("P15 比价：预算按单价算；买多件时总额交给规则引擎去拦", () => {
+  const cmp = compareOffers(
+    [listing({ merchant_id: "m_a", title: "65W Charger", price_hkd: 219 })],
+    { query: "", max_price_hkd: 300, qty: 4 },
+    { trustedMerchants: [], stores: STORES_FOR_TEST },
+  );
+  assert.equal(cmp.pick?.total_hkd, 876);
+});
+
 test("P11 比价：价格差不到 HK$10 时熟客店优先，差得多就选便宜的", () => {
   const close = compareOffers(
     [listing({ merchant_id: "m_a", title: "X", price_hkd: 215 }), listing({ merchant_id: "m_b", title: "Y", price_hkd: 219 })],

@@ -30,6 +30,7 @@ import { chooseCard, loadCards, type CardChoice } from "../pay/cards.ts";
 import { issueCredential, settle, type Settlement } from "../pay/settle.ts";
 import type { Comparison } from "../shop/compare.ts";
 import type { ReferenceResult } from "../shop/reference.ts";
+import { t } from "../i18n.ts";
 import { fetchListing, type Listing } from "../shop/shopify.ts";
 import { CATEGORY_TEXT, STORES, storeById } from "../shop/stores.ts";
 
@@ -42,11 +43,13 @@ export const SERVER_KEYS = {
 };
 
 /** 预设收货地。坐标只给浏览器做本地比对，服务器不收用户坐标 */
-export const SHIP_TO = {
-  dorm: { label: "港大宿舍", lat: 22.2830, lng: 114.1371 },
-  home: { label: "家（沙田）", lat: 22.3817, lng: 114.1880 },
-  other_city: { label: "深圳仓", lat: 22.5431, lng: 114.0579 },
-} as const satisfies Record<ShipToLabel, { label: string; lat: number; lng: number }>;
+export function shipToPlaces(): Record<ShipToLabel, { label: string; lat: number; lng: number }> {
+  return {
+    dorm: { label: t("港大宿舍", "HKU dorm"), lat: 22.2830, lng: 114.1371 },
+    home: { label: t("家（沙田）", "Home (Sha Tin)"), lat: 22.3817, lng: 114.1880 },
+    other_city: { label: t("深圳仓", "Shenzhen warehouse"), lat: 22.5431, lng: 114.0579 },
+  };
+}
 
 const RISK_LIST: RiskList = {
   fps_ids: ["9998887", "1651234"],
@@ -219,7 +222,7 @@ export class Session {
     tavilyKey?: string;
     serpKey?: string;
   }): Promise<Order | null> {
-    if (this.agentBusy) throw new Error("代理正在工作，请等它做完");
+    if (this.agentBusy) throw new Error(t("代理正在工作，请等它做完", "The agent is still working; wait for it to finish"));
     this.agentBusy = true;
     if (o.mode === "llm") this.llmRuns++;
     this.record("agent", "AGENT_STARTED", { mode: o.mode, prompt: o.prompt.slice(0, 200), injection: o.injection });
@@ -369,7 +372,7 @@ export class Session {
       listingOk = live.available && live.price_hkd === order.quote.unit_price_hkd && live.variant_id === order.quote.item.sku;
       listingNote = `live price=${live.price_hkd} available=${live.available}`;
     } catch (e) {
-      listingNote = `核对失败：${(e as Error).message}`;
+      listingNote = t(`核对失败：${(e as Error).message}`, `check failed: ${(e as Error).message}`);
     }
     const listing = issueClaim(SERVER_KEYS.merchant, {
       orderHash: hash,
@@ -405,7 +408,7 @@ export class Session {
 
   async submitBundle(orderId: string, bundle: Bundle, stripeKey?: string): Promise<Order> {
     const order = this.mustOrder(orderId);
-    if (order.status === "paid") throw new Error("这一单已经付过了");
+    if (order.status === "paid") throw new Error(t("这一单已经付过了", "This order has already been paid"));
     order.bundle = bundle;
     const d = evaluateWithAttestation(
       this.evalContext(order),
@@ -450,9 +453,9 @@ export class Session {
 
   async consent(orderId: string, latencyMs: number, stripeKey?: string): Promise<{ order: Order; message: string }> {
     const order = this.mustOrder(orderId);
-    if (!order.decision) throw new Error("这一单还没有判定");
+    if (!order.decision) throw new Error(t("这一单还没有判定", "This order has not been decided yet"));
     if (order.status === "paid" || order.status === "declined") {
-      return { order, message: "这一单已经结束了。" };
+      return { order, message: t("这一单已经结束了。", "This order is already closed.") };
     }
     const consent = evaluateConsent(latencyMs);
     order.consent = consent;
@@ -464,7 +467,7 @@ export class Session {
     }
     await this.pay(order, consent, stripeKey);
     this.emit("order", this.publicOrder(order));
-    return { order, message: "已发出一次性凭证并结算。" };
+    return { order, message: t("已发出一次性凭证并结算。", "One-time credential issued and settled.") };
   }
 
   private async pay(order: Order, consent: ConsentDecision | null, stripeKey?: string): Promise<void> {
@@ -520,7 +523,7 @@ export class Session {
 
   mustOrder(id: string): Order {
     const o = this.orders.get(id);
-    if (!o) throw new Error(`没有这一单：${id}`);
+    if (!o) throw new Error(t(`没有这一单：${id}`, `No such order: ${id}`));
     return o;
   }
 
@@ -533,7 +536,7 @@ export class Session {
       qty: o.qty,
       cart_url: o.cart_url,
       ship_to: o.ship_to,
-      ship_to_place: SHIP_TO[o.ship_to],
+      ship_to_place: shipToPlaces()[o.ship_to],
       ship_to_tampered: o.ship_to_tampered,
       agent_reason: o.agent_reason,
       comparison: o.comparison,
@@ -560,7 +563,7 @@ export class Session {
       tier: this.authTime ? strengthTier(this.authTime.toISOString(), now) : null,
       device_key: this.deviceKey,
       keys: { bank: SERVER_KEYS.bank.publicKey, merchant: SERVER_KEYS.merchant.publicKey, location: this.deviceKey },
-      ship_to: SHIP_TO,
+      ship_to: shipToPlaces(),
       stores: STORES.map((s) => ({ merchant_id: s.merchant_id, name: s.name, domain: s.domain })),
       current_order: this.currentOrderId ? this.publicOrder(this.mustOrder(this.currentOrderId)) : null,
       log: this.log,

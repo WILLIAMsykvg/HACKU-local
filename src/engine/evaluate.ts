@@ -8,6 +8,7 @@
  *   validateCredential()   凭证对不对            （R-14）
  */
 
+import { t } from "../i18n.ts";
 import { RULES, ruleById } from "./rules.ts";
 import { buildReason } from "./reasons.ts";
 import {
@@ -121,16 +122,17 @@ export function evaluateConsent(latencyMs: number): ConsentDecision {
       accepted: false,
       rule: RULE.CONSENT_TOO_FAST,
       approvalLatencyMs: latencyMs,
-      userFacingReason:
-        `你只用了 ${latencyMs} 毫秒就点了同意 —— 这看不出你有没有看过内容。` +
-        `先暂缓，不会被当成一次有效的同意。`,
+      userFacingReason: t(
+        `你只用了 ${latencyMs} 毫秒就点了同意 —— 这看不出你有没有看过内容。先暂缓，不会被当成一次有效的同意。`,
+        `You approved after only ${latencyMs} ms, which doesn't show you read it. On hold; it doesn't count as consent.`,
+      ),
     };
   }
   return {
     accepted: true,
     rule: null,
     approvalLatencyMs: latencyMs,
-    userFacingReason: `同意已记录（你花了 ${latencyMs} 毫秒）。`,
+    userFacingReason: t(`同意已记录（你花了 ${latencyMs} 毫秒）。`, `Consent recorded (you took ${latencyMs} ms).`),
   };
 }
 
@@ -158,7 +160,7 @@ export function canIssueCredential(input: {
     return {
       ok: false,
       rule: decision.primaryReasonRule,
-      userFacingReason: `这笔不会发出凭证 —— ${decision.userFacingReason}`,
+      userFacingReason: t(`这笔不会发出凭证 —— ${decision.userFacingReason}`, `No credential for this one: ${decision.userFacingReason}`),
       remainingMs: 0,
     };
   }
@@ -170,9 +172,10 @@ export function canIssueCredential(input: {
       return {
         ok: false,
         rule: RULE.COOLDOWN_NOT_ELAPSED,
-        userFacingReason:
-          `冷静期还没结束（还剩约 ${Math.ceil(remaining / 1000)} 秒）。` +
-          `这段时间里代理可以继续比价、查商户，但不会发出凭证。`,
+        userFacingReason: t(
+          `冷静期还没结束（还剩约 ${Math.ceil(remaining / 1000)} 秒）。这段时间里代理可以继续比价、查商户，但不会发出凭证。`,
+          `The cooling-off period isn't over (about ${Math.ceil(remaining / 1000)} s left). The agent can keep comparing and checking the store, but no credential is issued.`,
+        ),
         remainingMs: remaining,
       };
     }
@@ -197,8 +200,8 @@ export function canIssueCredential(input: {
       rule: null,
       userFacingReason:
         decision.channel === "cooldown"
-          ? "冷静期结束了，现在需要你确认一次，才会发出凭证。"
-          : "这次需要你先点一次同意，才会发出凭证。",
+          ? t("冷静期结束了，现在需要你确认一次，才会发出凭证。", "The cooling-off period is over. Confirm once and the credential is issued.")
+          : t("这次需要你先点一次同意，才会发出凭证。", "This one needs your OK before a credential is issued."),
       remainingMs: 0,
     };
   }
@@ -206,7 +209,10 @@ export function canIssueCredential(input: {
   return {
     ok: true,
     rule: null,
-    userFacingReason: "可以发出一次性凭证：锁死一家商户、一个金额、一次性使用。",
+    userFacingReason: t(
+      "可以发出一次性凭证：锁死一家商户、一个金额、一次性使用。",
+      "A one-time credential can be issued: locked to one store, one amount, one use.",
+    ),
     remainingMs: 0,
   };
 }
@@ -245,9 +251,10 @@ export function validateCredential(
       ok: false,
       rule: RULE.CREDENTIAL_MISMATCH,
       mismatches,
-      userFacingReason:
-        "凭证和批准的内容对不上，这笔不会结算。" +
-        "批准的商户、金额、商品被签在一起，批准之后不能调包。",
+      userFacingReason: t(
+        "凭证和批准的内容对不上，这笔不会结算。批准的商户、金额、商品被签在一起，批准之后不能调包。",
+        "The credential doesn't match what you approved, so it won't settle. Store, amount and item are bound together and can't be swapped after approval.",
+      ),
     };
   }
 
@@ -255,6 +262,6 @@ export function validateCredential(
     ok: true,
     rule: null,
     mismatches: [],
-    userFacingReason: "凭证与批准内容逐字一致。",
+    userFacingReason: t("凭证与批准内容逐字一致。", "The credential matches the approval exactly."),
   };
 }

@@ -7,6 +7,7 @@
  * 不提交订单、不填付款资料、不绕过任何防护。每家店的请求有最小间隔。
  */
 
+import { t } from "../i18n.ts";
 import { STORES, USER_AGENT, storeByDomain, type Store } from "./stores.ts";
 
 export interface Listing {
@@ -51,13 +52,13 @@ const HKD_HEADERS = {
 
 async function politeFetch(url: URL): Promise<Response> {
   const store = storeByDomain(url.host);
-  if (!store) throw new ShopError(`域名 ${url.host} 不在白名单里`);
+  if (!store) throw new ShopError(t(`域名 ${url.host} 不在白名单里`, `${url.host} is not on the whitelist`));
   const now = Date.now();
   const slot = Math.max(now, nextSlot.get(store.domain) ?? 0);
   nextSlot.set(store.domain, slot + MIN_INTERVAL_MS);
   if (slot > now) await new Promise((r) => setTimeout(r, slot - now));
   const res = await fetch(withHkd(url), { headers: HKD_HEADERS, signal: AbortSignal.timeout(8_000) });
-  if (!res.ok) throw new ShopError(`${url.host} 返回 ${res.status}`);
+  if (!res.ok) throw new ShopError(t(`${url.host} 返回 ${res.status}`, `${url.host} returned ${res.status}`));
   return res;
 }
 
@@ -70,7 +71,7 @@ async function assertHkd(store: Store): Promise<void> {
   const res = await politeFetch(new URL(`https://${store.domain}/cart.js`));
   const cart = (await res.json()) as { currency?: string };
   if (cart.currency !== "HKD") {
-    throw new ShopError(`${store.name} 返回的币种是 ${cart.currency ?? "未知"}，不是港币，不能用来比价`);
+    throw new ShopError(t(`${store.name} 返回的币种是 ${cart.currency ?? "未知"}，不是港币，不能用来比价`, `${store.name} returned currency ${cart.currency ?? "unknown"}, not HKD, so it can't be compared`));
   }
   currencyChecked.set(store.domain, Date.now());
 }
@@ -81,12 +82,12 @@ export function parseProductUrl(raw: string): { store: Store; handle: string } {
   try {
     url = new URL(raw);
   } catch {
-    throw new ShopError(`不是有效的网址：${raw}`);
+    throw new ShopError(t(`不是有效的网址：${raw}`, `Not a valid URL: ${raw}`));
   }
   const store = storeByDomain(url.host);
-  if (!store) throw new ShopError(`域名 ${url.host} 不在白名单里`);
+  if (!store) throw new ShopError(t(`域名 ${url.host} 不在白名单里`, `${url.host} is not on the whitelist`));
   const m = url.pathname.match(/\/products\/([^/?#.]+)/);
-  if (!m) throw new ShopError(`不是商品页：${raw}`);
+  if (!m) throw new ShopError(t(`不是商品页：${raw}`, `Not a product page: ${raw}`));
   return { store, handle: decodeURIComponent(m[1]!) };
 }
 
@@ -129,7 +130,7 @@ async function fetchListingLive(productUrl: string, variantId?: string): Promise
     (variantId ? p.variants.find((x) => String(x.id) === variantId) : undefined) ??
     p.variants.find((x) => x.available) ??
     p.variants[0];
-  if (!v) throw new ShopError(`${p.title} 没有可选的规格`);
+  if (!v) throw new ShopError(t(`${p.title} 没有可选的规格`, `${p.title} has no available variant`));
   return {
     merchant_id: store.merchant_id,
     merchant_name: store.name,

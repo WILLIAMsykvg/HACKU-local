@@ -11,6 +11,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { t } from "../i18n.ts";
 import { canonicalize } from "./canonical.ts";
 
 export { canonicalize };
@@ -60,10 +61,10 @@ export function verifyChain(chain: readonly LogEntry[]): VerifyResult {
   for (let i = 0; i < chain.length; i++) {
     const e = chain[i]!;
     if (e.seq !== i) {
-      return { ok: false, brokenAt: i, reason: `seq 不连续：期望 ${i}，实际 ${e.seq}` };
+      return { ok: false, brokenAt: i, reason: t(`seq 不连续：期望 ${i}，实际 ${e.seq}`, `seq is not continuous: expected ${i}, got ${e.seq}`) };
     }
     if (e.prev_hash !== prev) {
-      return { ok: false, brokenAt: i, reason: `第 ${i} 条的 prev_hash 对不上` };
+      return { ok: false, brokenAt: i, reason: t(`第 ${i} 条的 prev_hash 对不上`, `entry ${i}: prev_hash doesn't match`) };
     }
     const { seq: _seq, prev_hash: _prev, entry_hash: _hash, ...payload } = e;
     const expect = computeEntryHash(prev, payload);
@@ -71,12 +72,12 @@ export function verifyChain(chain: readonly LogEntry[]): VerifyResult {
       return {
         ok: false,
         brokenAt: i,
-        reason: `第 ${i} 条内容被改过（entry_hash 对不上）`,
+        reason: t(`第 ${i} 条内容被改过（entry_hash 对不上）`, `entry ${i} was altered (entry_hash doesn't match)`),
       };
     }
     prev = e.entry_hash;
   }
-  return { ok: true, brokenAt: null, reason: `${chain.length} 条全部通过` };
+  return { ok: true, brokenAt: null, reason: t(`${chain.length} 条全部通过`, `all ${chain.length} entries verified`) };
 }
 
 // ---------------------------------------------------------------------------

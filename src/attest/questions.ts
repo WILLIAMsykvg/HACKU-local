@@ -11,6 +11,7 @@ export interface QuestionDef {
   id: QuestionId;
   role: IssuerRole;
   text: string;
+  text_en: string;
   /** 结论自签发起的有效期 */
   validity_ms: number;
   /** 答案为真时的分值；为假、缺失、过期都是 0 */
@@ -28,6 +29,7 @@ export const QUESTIONS: readonly QuestionDef[] = [
     id: "near_ship_to",
     role: "location",
     text: `此刻是否在收货地 ${NEAR_SHIP_TO_KM} 公里内`,
+    text_en: `Is the holder within ${NEAR_SHIP_TO_KM} km of the ship-to address right now?`,
     validity_ms: 10 * MIN,
     points: 40,
   },
@@ -35,6 +37,7 @@ export const QUESTIONS: readonly QuestionDef[] = [
     id: "holder_recently_authenticated",
     role: "bank",
     text: "本人最近一次用指纹或面容强认证的时间",
+    text_en: "When did the holder last strongly authenticate with fingerprint or face?",
     validity_ms: 2 * MIN,
     points: 40,
   },
@@ -42,6 +45,7 @@ export const QUESTIONS: readonly QuestionDef[] = [
     id: "consistent_with_history",
     role: "merchant",
     text: "这一单是否符合此人在本店的购买习惯",
+    text_en: "Does this order fit the holder's buying habits at this store?",
     validity_ms: 24 * HOUR,
     points: 20,
   },
@@ -49,6 +53,7 @@ export const QUESTIONS: readonly QuestionDef[] = [
     id: "quote_matches_listing",
     role: "merchant",
     text: "这一单的商品、价格、库存是否与本店此刻公开的数据一致",
+    text_en: "Do the item, price and stock match the store's public data right now?",
     validity_ms: 10 * MIN,
     // 不计分：对不上直接不发凭证，缺失则至少问一次
     points: 0,

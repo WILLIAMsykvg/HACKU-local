@@ -8,7 +8,8 @@
 import { randomUUID } from "node:crypto";
 
 import type { Credential, Quote } from "../engine/types.ts";
-import type { PaymentCard } from "./cards.ts";
+import { t } from "../i18n.ts";
+import { cardLabel, type PaymentCard } from "./cards.ts";
 
 export const CREDENTIAL_TTL_MS = 10 * 60_000;
 
@@ -45,7 +46,9 @@ export async function settle(cred: Credential, card: PaymentCard, stripeKey: str
       mode: "simulated",
       id: `sim_${cred.credential_id}`,
       status: "succeeded",
-      note: !pm ? "转数快在演示里用模拟结算。" : "没有配置 Stripe 测试密钥，使用模拟结算。",
+      note: !pm
+        ? t("转数快在演示里用模拟结算。", "FPS is settled by simulation in the demo.")
+        : t("没有配置 Stripe 测试密钥，使用模拟结算。", "No Stripe test key configured, so settlement is simulated."),
     };
   }
 
@@ -78,21 +81,27 @@ export async function settle(cred: Credential, card: PaymentCard, stripeKey: str
         mode: "simulated",
         id: `sim_${cred.credential_id}`,
         status: "succeeded",
-        note: `Stripe 测试模式调用失败（${data.error?.message ?? res.status}），改用模拟结算。`,
+        note: t(
+          `Stripe 测试模式调用失败（${data.error?.message ?? res.status}），改用模拟结算。`,
+          `Stripe test mode call failed (${data.error?.message ?? res.status}); settled by simulation instead.`,
+        ),
       };
     }
     return {
       mode: "stripe_test",
       id: data.id,
       status: data.status ?? "unknown",
-      note: `Stripe 测试模式：用 ${card.label} 的测试付款方式结算，不涉及真钱。`,
+      note: t(
+        `Stripe 测试模式：用 ${card.label} 的测试付款方式结算，不涉及真钱。`,
+        `Stripe test mode: settled with the test payment method for ${cardLabel(card)}. No real money.`,
+      ),
     };
   } catch (e) {
     return {
       mode: "simulated",
       id: `sim_${cred.credential_id}`,
       status: "succeeded",
-      note: `Stripe 连不上（${(e as Error).message}），改用模拟结算。`,
+      note: t(`Stripe 连不上（${(e as Error).message}），改用模拟结算。`, `Couldn't reach Stripe (${(e as Error).message}); settled by simulation instead.`),
     };
   }
 }

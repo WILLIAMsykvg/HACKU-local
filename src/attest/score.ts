@@ -6,6 +6,7 @@
  */
 
 import { SEVERITY, type Channel } from "../engine/types.ts";
+import { t } from "../i18n.ts";
 import { QUESTIONS, SCORE_THRESHOLDS, TIER_BOUNDS } from "./questions.ts";
 import type {
   ClaimStatus,
@@ -82,11 +83,13 @@ export interface FloorContext {
   qty: number;
 }
 
-const TIER_TEXT: Record<StrengthTier, string> = {
-  strong: "2 小时内",
-  medium: "2 到 12 小时前",
-  weak: "12 到 24 小时前",
-};
+function tierText(tier: StrengthTier): string {
+  return {
+    strong: t("2 小时内", "within the last 2 hours"),
+    medium: t("2 到 12 小时前", "2 to 12 hours ago"),
+    weak: t("12 到 24 小时前", "12 to 24 hours ago"),
+  }[tier];
+}
 
 export function scoreClaims(claims: readonly SignedClaim[], ctx: FloorContext): ScoreResult {
   const statuses = claimStatuses(claims, ctx.now);
@@ -105,13 +108,19 @@ export function scoreClaims(claims: readonly SignedClaim[], ctx: FloorContext): 
   if (tier === "medium" && !(ctx.merchantTrusted && ctx.qty === 1)) {
     floorReasons.push({
       channel: "ask_once",
-      text: `你上次用指纹或面容确认是${TIER_TEXT.medium}，这一单是新商户或不止一件，所以先问你一次。`,
+      text: t(
+        `你上次用指纹或面容确认是${tierText("medium")}，这一单是新商户或不止一件，所以先问你一次。`,
+        `You last confirmed with fingerprint or face ${tierText("medium")}, and this is a new store or more than one item, so you're asked once.`,
+      ),
     });
   }
   if (tier === "weak") {
     floorReasons.push({
       channel: "cooldown",
-      text: `你上次用指纹或面容确认是${TIER_TEXT.weak}，授权已经变弱，先进冷静期；再确认一次就恢复。`,
+      text: t(
+        `你上次用指纹或面容确认是${tierText("weak")}，授权已经变弱，先进冷静期；再确认一次就恢复。`,
+        `You last confirmed with fingerprint or face ${tierText("weak")}. Your authorisation has weakened, so this goes to cooling-off first; confirm again to restore it.`,
+      ),
     });
   }
 
@@ -119,7 +128,7 @@ export function scoreClaims(claims: readonly SignedClaim[], ctx: FloorContext): 
   if (listing.state !== "counted") {
     floorReasons.push({
       channel: "ask_once",
-      text: "商户没有核对这一单的价格和库存，所以请你自己确认一次。",
+      text: t("商户没有核对这一单的价格和库存，所以请你自己确认一次。", "The store didn't confirm this order's price and stock, so please confirm it yourself once."),
     });
   }
 
@@ -132,7 +141,7 @@ export function scoreClaims(claims: readonly SignedClaim[], ctx: FloorContext): 
     const lacking = statuses
       .filter((s) => s.points === 0 && s.question_id !== "quote_matches_listing")
       .map((s) => describeLack(s));
-    top.unshift(`证明分数 ${score}：${lacking.join("；")}。`);
+    top.unshift(t(`证明分数 ${score}：${lacking.join("；")}。`, `Proof score ${score}: ${lacking.join("; ")}.`));
   }
 
   return {
@@ -142,20 +151,20 @@ export function scoreClaims(claims: readonly SignedClaim[], ctx: FloorContext): 
     floor_channel: floor,
     channel,
     statuses,
-    reason: top.length > 0 ? top.join(" ") : "三方证明齐全，这一单可以直接执行。",
+    reason: top.length > 0 ? top.join(" ") : t("三方证明齐全，这一单可以直接执行。", "All three parties' answers are in, so this order can go ahead."),
   };
 }
 
 function describeLack(s: ClaimStatus): string {
   const who: Record<string, string> = {
-    near_ship_to: "定位",
-    holder_recently_authenticated: "本人确认",
-    consistent_with_history: "购买习惯",
+    near_ship_to: t("定位", "location"),
+    holder_recently_authenticated: t("本人确认", "holder confirmation"),
+    consistent_with_history: t("购买习惯", "buying habits"),
   };
   const name = who[s.question_id] ?? s.question_id;
-  if (s.state === "missing") return `${name}没有提供`;
-  if (s.state === "expired") return `${name}已过期`;
-  if (s.question_id === "near_ship_to") return "你此刻不在收货地附近";
-  if (s.question_id === "consistent_with_history") return "这一单和你在这家店的习惯不一致";
-  return `${name}的回答是否`;
+  if (s.state === "missing") return t(`${name}没有提供`, `${name} not provided`);
+  if (s.state === "expired") return t(`${name}已过期`, `${name} expired`);
+  if (s.question_id === "near_ship_to") return t("你此刻不在收货地附近", "you're not near the ship-to address right now");
+  if (s.question_id === "consistent_with_history") return t("这一单和你在这家店的习惯不一致", "this order doesn't fit your habits at this store");
+  return t(`${name}的回答是否`, `${name} answered no`);
 }

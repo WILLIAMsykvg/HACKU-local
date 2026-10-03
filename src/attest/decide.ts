@@ -9,6 +9,7 @@
  */
 
 import { DEFAULT_OPTIONS, evaluateQuote, type EngineOptions } from "../engine/evaluate.ts";
+import { t } from "../i18n.ts";
 import type { EvalContext, QuoteDecision } from "../engine/types.ts";
 import { orderHash } from "./orderHash.ts";
 import { stricter } from "./score.ts";
@@ -53,7 +54,7 @@ export function evaluateWithAttestation(
     return {
       ...base,
       channel: "decline",
-      userFacingReason: `这几份证明对不上，所以不发凭证：${outcome.reason}`,
+      userFacingReason: t(`这几份证明对不上，所以不发凭证：${outcome.reason}`, `The proofs don't check out, so no credential is issued. ${outcome.reason}`),
       logNotes: { ...engine.logNotes, [outcome.code]: outcome.reason },
       cooldownUntil: null,
       attestation: outcome,

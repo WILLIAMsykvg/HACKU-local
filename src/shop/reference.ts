@@ -7,6 +7,7 @@
  * 参考价永远不能直接下单：下单只走白名单店的真购物车。
  */
 
+import { t } from "../i18n.ts";
 import { STORES } from "./stores.ts";
 
 export interface ReferenceOffer {
@@ -129,7 +130,7 @@ export async function referencePrices(
   o: { serpKey?: string; tavilyKey?: string; limit?: number } = {},
 ): Promise<ReferenceResult> {
   const hit = cache.get(query);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.result;
+  if (hit && Date.now() - hit.at < CACHE_MS) return { ...hit.result, note: viaNote(hit.result.via) ?? hit.result.note };
   const result = await referencePricesUncached(query, o);
   if (result.via !== "none") cache.set(query, { at: Date.now(), result });
   return result;
@@ -143,7 +144,7 @@ async function referencePricesUncached(
   if (o.serpKey) {
     try {
       const offers = await viaSerpApi(query, o.serpKey, limit);
-      return { via: "serpapi_google_shopping", note: "来自 Google Shopping（香港），只看不买。", offers };
+      return { via: "serpapi_google_shopping", note: viaNote("serpapi_google_shopping")!, offers };
     } catch (e) {
       if (!o.tavilyKey) return { via: "none", note: (e as Error).message, offers: [] };
     }
@@ -151,10 +152,16 @@ async function referencePricesUncached(
   if (o.tavilyKey) {
     try {
       const offers = await viaTavily(query, o.tavilyKey, limit);
-      return { via: "tavily_snippet", note: "从全网搜索摘要里解析的价格，可能不准，只看不买。", offers };
+      return { via: "tavily_snippet", note: viaNote("tavily_snippet")!, offers };
     } catch (e) {
       return { via: "none", note: (e as Error).message, offers: [] };
     }
   }
-  return { via: "none", note: "没有配置参考价来源。", offers: [] };
+  return { via: "none", note: t("没有配置参考价来源。", "No reference price source configured."), offers: [] };
+}
+
+function viaNote(via: ReferenceResult["via"]): string | null {
+  if (via === "serpapi_google_shopping") return t("来自 Google Shopping（香港），只看不买。", "From Google Shopping (Hong Kong). For reference only, not for buying.");
+  if (via === "tavily_snippet") return t("从全网搜索摘要里解析的价格，可能不准，只看不买。", "Parsed from web search snippets, may be inaccurate. For reference only.");
+  return null;
 }

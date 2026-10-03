@@ -5,6 +5,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { t } from "../i18n.ts";
 import { fetchListing, type Listing } from "./shopify.ts";
 import { STORES } from "./stores.ts";
 
@@ -91,10 +92,13 @@ export function tokens(s: string): string[] {
   return out;
 }
 
-const STOPWORDS = new Set(["帮我", "我买", "买一", "一个", "一份", "以内", "内的", "寄到", "到宿", "宿舍", "给我", "我要", "我想", "想买"]);
+const STOPWORDS = new Set([
+  "帮我", "我买", "买一", "一个", "一份", "以内", "内的", "寄到", "到宿", "宿舍", "给我", "我要", "我想", "想买",
+  "buy", "me", "an", "under", "for", "the", "to", "my", "dorm", "ship", "hk", "and", "of", "with",
+]);
 
 export function searchSnapshot(query: string, maxPrice?: number, limit = 6): Listing[] {
-  const q = tokens(query).filter((t) => !STOPWORDS.has(t));
+  const q = tokens(query).filter((w) => !STOPWORDS.has(w));
   return loadSnapshot()
     .filter((l) => l.available && (maxPrice === undefined || l.price_hkd <= maxPrice))
     .map((l) => {
@@ -118,13 +122,13 @@ export async function searchProducts(
 ): Promise<SearchResult> {
   const limit = o.limit ?? 6;
   let liveUrls: string[] = [];
-  let note = o.apiKey ? "" : "没有配置搜索 key，只用本地快照。";
+  let note = o.apiKey ? "" : t("没有配置搜索 key，只用本地快照。", "No search key configured, so only the local snapshot is used.");
   if (o.apiKey) {
     try {
       liveUrls = await tavilyProductUrls(query, o.apiKey);
-      note = `Tavily 搜到 ${liveUrls.length} 个商品页`;
+      note = t(`Tavily 搜到 ${liveUrls.length} 个商品页`, `Tavily found ${liveUrls.length} product pages`);
     } catch (e) {
-      note = `联网搜索失败（${(e as Error).message}）`;
+      note = t(`联网搜索失败（${(e as Error).message}）`, `Web search failed (${(e as Error).message})`);
     }
   }
 
@@ -144,7 +148,10 @@ export async function searchProducts(
 
   return {
     via: liveUrls.length > 0 ? "tavily" : "snapshot",
-    note: `${note ? note + "；" : ""}本地快照补上 ${fromSnapshot.length} 件。价格和库存是刚从店里读的。`,
+    note: t(
+      `${note ? note + "；" : ""}本地快照补上 ${fromSnapshot.length} 件。价格和库存是刚从店里读的。`,
+      `${note ? note + "; " : ""}the local snapshot added ${fromSnapshot.length}. Prices and stock were just read from the stores.`,
+    ),
     listings,
   };
 }

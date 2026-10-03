@@ -44,6 +44,8 @@ export interface AgentOutcome {
   tool_calls: number;
   comparison: Comparison | null;
   references: ReferenceResult | null;
+  /** 大模型模式累计的 token；脚本模式为 null */
+  usage: { llm_calls: number; prompt_tokens: number; completion_tokens: number } | null;
 }
 
 const SYSTEM_PROMPT = `Always reply to the user in Simplified Chinese. 所有给用户看的话都用简体中文。
@@ -86,9 +88,13 @@ async function runLlm(run: AgentRun): Promise<AgentOutcome> {
     { role: "user", content: run.prompt },
   ];
   let calls = 0;
+  const usage = { llm_calls: 0, prompt_tokens: 0, completion_tokens: 0 };
 
   for (let turn = 0; turn < MAX_TOOL_CALLS + 2; turn++) {
     const r = await chat(run.deepseekKey, messages, TOOL_SPECS);
+    usage.llm_calls++;
+    usage.prompt_tokens += r.usage?.prompt_tokens ?? 0;
+    usage.completion_tokens += r.usage?.completion_tokens ?? 0;
     const toolCalls = r.message.tool_calls ?? [];
     messages.push({ role: "assistant", content: r.message.content, tool_calls: toolCalls.length ? toolCalls : undefined });
     if (r.message.content) run.emit({ kind: "say", text: r.message.content });
@@ -112,7 +118,7 @@ async function runLlm(run: AgentRun): Promise<AgentOutcome> {
     if (state.submitted || calls >= MAX_TOOL_CALLS) break;
   }
 
-  return outcome(state, calls);
+  return { ...outcome(state, calls), usage };
 }
 
 // ---------------------------------------------------------------------------
@@ -213,5 +219,6 @@ function outcome(state: ToolState, calls: number): AgentOutcome {
     tool_calls: calls,
     comparison: state.comparison,
     references: state.references,
+    usage: null,
   };
 }

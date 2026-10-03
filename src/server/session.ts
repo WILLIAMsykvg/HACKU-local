@@ -223,6 +223,7 @@ export class Session {
     this.agentBusy = true;
     if (o.mode === "llm") this.llmRuns++;
     this.record("agent", "AGENT_STARTED", { mode: o.mode, prompt: o.prompt.slice(0, 200), injection: o.injection });
+    const startedAt = Date.now();
     try {
       const out = await runAgent({
         mode: o.mode,
@@ -249,6 +250,14 @@ export class Session {
             }
           }
         },
+      });
+      this.record("agent", "AGENT_FINISHED", {
+        mode: o.mode,
+        elapsed_ms: Date.now() - startedAt,
+        tool_calls: out.tool_calls,
+        llm_calls: out.usage?.llm_calls ?? 0,
+        prompt_tokens: out.usage?.prompt_tokens ?? 0,
+        completion_tokens: out.usage?.completion_tokens ?? 0,
       });
       if (!out.ok || !out.cart || !out.ship_to_label) {
         this.record("agent", "AGENT_STOPPED", { reason: out.reason });

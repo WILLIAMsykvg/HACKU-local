@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Bundle, ScoreResult, SignedClaim, StrengthTier } from "../../src/attest/types.ts";
 import type { Channel, ConsentDecision, Credential, Mandate, Quote, RuleId } from "../../src/engine/types.ts";
+import { getLang, t } from "./lang.ts";
 
 export interface Listing {
   merchant_id: string;
@@ -54,7 +55,7 @@ export interface Order {
   decision: Decision | null;
   consent: ConsentDecision | null;
   credential: Credential | null;
-  card: { card: { label: string }; reason: string; considered: { label: string; note: string }[] } | null;
+  card: { card: { label: string; label_en?: string }; reason: string; considered: { label: string; note: string }[] } | null;
   settlement: { mode: string; id: string; status: string; note: string } | null;
 }
 
@@ -99,12 +100,12 @@ export type AgentEvent =
 export async function api<T = unknown>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? { "X-Lang": getLang() } : { "Content-Type": "application/json", "X-Lang": getLang() },
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: "same-origin",
   });
   const data = (await res.json()) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? `请求失败（${res.status}）`);
+  if (!res.ok) throw new Error(data.error ?? t(`请求失败（${res.status}）`, `Request failed (${res.status})`));
   return data;
 }
 
@@ -123,7 +124,7 @@ export function useLive() {
     let stopped = false;
 
     const open = () => {
-      const es = new EventSource("/api/events");
+      const es = new EventSource(`/api/events?lang=${getLang()}`);
       esRef.current = es;
       es.onopen = () => setConnected(true);
       es.onerror = () => {

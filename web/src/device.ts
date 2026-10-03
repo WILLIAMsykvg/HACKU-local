@@ -8,6 +8,7 @@
 import { canonicalize } from "../../src/log/canonical.ts";
 import { NEAR_SHIP_TO_KM, QUESTIONS } from "../../src/attest/questions.ts";
 import type { Claim, SignedClaim } from "../../src/attest/types.ts";
+import { t } from "./lang.ts";
 
 const STORE_KEY = "ld_device_key_v1";
 
@@ -77,10 +78,10 @@ export const VENUE = { lat: 22.2830, lng: 114.1371 };
 
 export function currentPosition(): Promise<Position> {
   return new Promise((resolve, reject) => {
-    if (!("geolocation" in navigator)) return reject(new Error("这台设备不支持定位"));
+    if (!("geolocation" in navigator)) return reject(new Error(t("这台设备不支持定位", "This device doesn't support location")));
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy_m: p.coords.accuracy, simulated: false }),
-      (e) => reject(new Error(e.code === 1 ? "没有给定位权限" : "暂时拿不到位置")),
+      (e) => reject(new Error(e.code === 1 ? t("没有给定位权限", "Location permission was not granted") : t("暂时拿不到位置", "Can't get a location right now"))),
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 },
     );
   });

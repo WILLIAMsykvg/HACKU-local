@@ -9,8 +9,11 @@ import { computeScore, strengthTier } from "../../src/attest/score.ts";
 import type { Bundle, SignedClaim } from "../../src/attest/types.ts";
 import { api, fetchClaims, type State, type useLive } from "./api.ts";
 import { NEAR_SHIP_TO_KM, VENUE, currentPosition, deviceKey, distanceKm, signLocationClaim, type Position } from "./device.ts";
+import { t } from "./lang.ts";
 
-export const DEFAULT_PROMPT = "帮我买一个 HK$300 以内的 65W 充电器，寄到宿舍";
+export function defaultPrompt(): string {
+  return t("帮我买一个 HK$300 以内的 65W 充电器，寄到宿舍", "Buy me a 65W charger under HK$300, ship to my dorm");
+}
 
 export interface Draft {
   orderId: string;
@@ -66,7 +69,12 @@ export function usePhone(state: State | null, refresh: () => Promise<void>, serv
     try {
       key = (await deviceKey()).publicX;
     } catch {
-      setDeviceError("这个浏览器不支持 Ed25519，定位结论会按缺失计。换新版 Chrome、Edge 或 Safari 即可。");
+      setDeviceError(
+        t(
+          "这个浏览器不支持 Ed25519，定位结论会按缺失计。换新版 Chrome、Edge 或 Safari 即可。",
+          "This browser doesn't support Ed25519, so the location answer counts as missing. A recent Chrome, Edge or Safari works.",
+        ),
+      );
     }
     await api("/api/auth/strong", { device_key: key });
     await refresh();
@@ -106,14 +114,17 @@ export function usePhone(state: State | null, refresh: () => Promise<void>, serv
       let near: boolean | null = null;
       let note: string;
       if (!state?.device_key) {
-        note = "这台设备还没做强认证、没登记钥匙，定位结论按缺失计。";
+        note = t("这台设备还没做强认证、没登记钥匙，定位结论按缺失计。", "This device hasn't done strong authentication or registered a key yet, so the location answer counts as missing.");
       } else if (!pos) {
-        note = "拿不到位置，定位结论按缺失计。";
+        note = t("拿不到位置，定位结论按缺失计。", "No location available, so the location answer counts as missing.");
       } else {
         dist = distanceKm(pos, order.ship_to_place);
         near = dist <= NEAR_SHIP_TO_KM;
         all.unshift(await signLocationClaim(order.order_hash, near, at));
-        note = `本地算出离「${order.ship_to_place.label}」${dist.toFixed(1)} 公里，所以回答「${near ? "是" : "否"}」。坐标没有离开这台设备。`;
+        note = t(
+          `本地算出离「${order.ship_to_place.label}」${dist.toFixed(1)} 公里，所以回答「${near ? "是" : "否"}」。坐标没有离开这台设备。`,
+          `Computed on this device: ${dist.toFixed(1)} km from "${order.ship_to_place.label}", so the answer is "${near ? "yes" : "no"}". The coordinates never left this device.`,
+        );
       }
       const bundle: Bundle = { order_hash: order.order_hash, claims: all, stated_score: computeScore(all, at) };
       if (!cancelled) setDraft({ orderId: order.id, key: draftKey, bundle, distance_km: dist, near, locationNote: note });
@@ -163,14 +174,19 @@ export function usePhone(state: State | null, refresh: () => Promise<void>, serv
     if (!order) return;
     await api(`/api/orders/${order.id}/tamper-ship-to`, {});
     await refresh();
-    setMessage("代理在结论签完之后把收货地改成了深圳仓。手机里这份证明包还是按原收货地签的。");
+    setMessage(
+      t(
+        "代理在结论签完之后把收货地改成了深圳仓。手机里这份证明包还是按原收货地签的。",
+        "After the answers were signed, the agent changed the ship-to to the Shenzhen warehouse. The bundle on the phone is still signed for the original address.",
+      ),
+    );
   };
 
   const consent = async () => {
     if (!order) return null;
     const latency = Date.now() - consentShownAt.current;
     const r = await api<{ message: string }>(`/api/orders/${order.id}/consent`, { latency_ms: latency });
-    setMessage(`${r.message}（你用了 ${(latency / 1000).toFixed(1)} 秒）`);
+    setMessage(t(`${r.message}（你用了 ${(latency / 1000).toFixed(1)} 秒）`, `${r.message} (you took ${(latency / 1000).toFixed(1)} s)`));
     await refresh();
     return r.message;
   };
@@ -205,7 +221,7 @@ export function usePhone(state: State | null, refresh: () => Promise<void>, serv
 export type Phone = ReturnType<typeof usePhone>;
 
 export function useAgent(live: ReturnType<typeof useLive>) {
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
+  const [prompt, setPrompt] = useState(defaultPrompt);
   const [mode, setMode] = useState<"scripted" | "llm">("scripted");
   const [injection, setInjection] = useState(false);
   const [code, setCode] = useState("");

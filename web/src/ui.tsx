@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
 
 import type { Channel } from "../../src/engine/types.ts";
+import { locale, t } from "./lang.ts";
 
-export const CHANNEL_TEXT: Record<Channel, string> = {
-  instant: "直接执行",
-  ask_once: "问你一次",
-  cooldown: "冷静期",
-  decline: "拒绝",
-};
+export function channelText(c: Channel): string {
+  return {
+    instant: t("直接执行", "Go ahead"),
+    ask_once: t("问你一次", "Ask once"),
+    cooldown: t("冷静期", "Cooling-off"),
+    decline: t("拒绝", "Decline"),
+  }[c];
+}
 
 const CHANNEL_STYLE: Record<Channel, string> = {
   instant: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30",
@@ -23,7 +26,7 @@ export function ChannelBadge({ channel, size = "sm" }: { channel: Channel; size?
         size === "lg" ? "px-3 py-1 text-base" : "px-2 py-0.5 text-xs"
       }`}
     >
-      {CHANNEL_TEXT[channel]}
+      {channelText(channel)}
     </span>
   );
 }
@@ -152,5 +155,5 @@ export function short(hash: string | null | undefined, n = 10): string {
 }
 
 export function timeHK(iso: string): string {
-  return new Date(iso).toLocaleTimeString("zh-HK", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  return new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 }

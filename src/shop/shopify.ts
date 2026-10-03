@@ -32,6 +32,23 @@ const MIN_INTERVAL_MS = 600;
 /** 每家店下一次允许发请求的时间。先占位再等待，并发调用也会排队 */
 const nextSlot = new Map<string, number>();
 
+/**
+ * Shopify 会按访客所在地区换算货币：服务器在新加坡时，同一件商品会以新加坡元返回。
+ * 所以每个请求都指定香港、港币（网址参数和 cookie 都带上）。
+ */
+export function withHkd(url: URL): URL {
+  const u = new URL(url);
+  u.searchParams.set("country", "HK");
+  u.searchParams.set("currency", "HKD");
+  return u;
+}
+
+const HKD_HEADERS = {
+  "User-Agent": USER_AGENT,
+  Accept: "application/json",
+  Cookie: "localization=HK; cart_currency=HKD",
+};
+
 async function politeFetch(url: URL): Promise<Response> {
   const store = storeByDomain(url.host);
   if (!store) throw new ShopError(`域名 ${url.host} 不在白名单里`);
@@ -39,12 +56,23 @@ async function politeFetch(url: URL): Promise<Response> {
   const slot = Math.max(now, nextSlot.get(store.domain) ?? 0);
   nextSlot.set(store.domain, slot + MIN_INTERVAL_MS);
   if (slot > now) await new Promise((r) => setTimeout(r, slot - now));
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    signal: AbortSignal.timeout(8_000),
-  });
+  const res = await fetch(withHkd(url), { headers: HKD_HEADERS, signal: AbortSignal.timeout(8_000) });
   if (!res.ok) throw new ShopError(`${url.host} 返回 ${res.status}`);
   return res;
+}
+
+const currencyChecked = new Map<string, number>();
+
+/** 每家店每 10 分钟核对一次：带着香港、港币参数时，店铺返回的币种确实是 HKD */
+async function assertHkd(store: Store): Promise<void> {
+  const at = currencyChecked.get(store.domain);
+  if (at && Date.now() - at < 10 * 60_000) return;
+  const res = await politeFetch(new URL(`https://${store.domain}/cart.js`));
+  const cart = (await res.json()) as { currency?: string };
+  if (cart.currency !== "HKD") {
+    throw new ShopError(`${store.name} 返回的币种是 ${cart.currency ?? "未知"}，不是港币，不能用来比价`);
+  }
+  currencyChecked.set(store.domain, Date.now());
 }
 
 /** 从商品网址里取出店和 handle；不是白名单店的商品页就抛错 */
@@ -94,6 +122,7 @@ export async function fetchListing(productUrl: string, variantId?: string, o: { 
 
 async function fetchListingLive(productUrl: string, variantId?: string): Promise<Listing> {
   const { store, handle } = parseProductUrl(productUrl);
+  await assertHkd(store);
   const res = await politeFetch(new URL(`https://${store.domain}/products/${encodeURIComponent(handle)}.js`));
   const p = (await res.json()) as ShopifyProductJs;
   const v =
@@ -129,6 +158,7 @@ interface ShopifyProductsJson {
 
 /** 读一家店的商品列表，每件取第一个有货的规格 */
 export async function fetchStoreCatalog(store: Store, limit = 250): Promise<Listing[]> {
+  await assertHkd(store);
   const res = await politeFetch(new URL(`https://${store.domain}/products.json?limit=${limit}`));
   const data = (await res.json()) as ShopifyProductsJson;
   const at = new Date().toISOString();
@@ -156,7 +186,7 @@ export async function fetchStoreCatalog(store: Store, limit = 250): Promise<List
 }
 
 export function cartUrl(listing: Pick<Listing, "domain" | "variant_id">, qty: number): string {
-  return `https://${listing.domain}/cart/${listing.variant_id}:${qty}`;
+  return withHkd(new URL(`https://${listing.domain}/cart/${listing.variant_id}:${qty}`)).toString();
 }
 
 export { STORES };

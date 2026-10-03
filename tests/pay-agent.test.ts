@@ -12,7 +12,7 @@ import { chooseCard, type PaymentCard } from "../src/pay/cards.ts";
 import { compareOffers } from "../src/shop/compare.ts";
 import { isSameProduct, parseHkd } from "../src/shop/reference.ts";
 import { tokens } from "../src/shop/search.ts";
-import type { Listing } from "../src/shop/shopify.ts";
+import { cartUrl, withHkd, type Listing } from "../src/shop/shopify.ts";
 
 function card(o: Partial<PaymentCard> & Pick<PaymentCard, "card_id" | "network">): PaymentCard {
   return {
@@ -95,6 +95,14 @@ test("P13 参考价：品牌对上才算同款", () => {
   assert.equal(isSameProduct(ours, "GP 超霸 65W USB-C 及 USB-A GaN三接口快速充電器"), true);
   assert.equal(isSameProduct(ours, "Xiaomi 我的快速充电器 Gan技术 65w"), false);
   assert.equal(isSameProduct(ours, "Ugreen CD316 65W 3-Port PD GaN Fast Charger"), false);
+});
+
+test("P14 读店铺数据和购物车链接一律指定香港、港币（服务器不在香港时 Shopify 会换算货币）", () => {
+  const u = withHkd(new URL("https://shop.example/products/x.js?variant=1"));
+  assert.equal(u.searchParams.get("currency"), "HKD");
+  assert.equal(u.searchParams.get("country"), "HK");
+  assert.equal(u.searchParams.get("variant"), "1");
+  assert.ok(cartUrl({ domain: "shop.example", variant_id: "42" }, 2).endsWith("/cart/42:2?country=HK&currency=HKD"));
 });
 
 test("P09 从摘要里解析港币价格", () => {

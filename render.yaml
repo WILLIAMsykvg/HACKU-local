@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: local-deployment
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: DEMO_ACCESS_CODE
+        sync: false

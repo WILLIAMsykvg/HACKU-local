@@ -1,0 +1,35 @@
+[
+  {
+    "card_id": "c_mc",
+    "network": "mastercard",
+    "label": "Mastercard 信用卡",
+    "issuer": null,
+    "online_rebate_percent": null,
+    "rule_text": null,
+    "source_url": null,
+    "captured_at": null,
+    "screenshot": null
+  },
+  {
+    "card_id": "c_up",
+    "network": "unionpay",
+    "label": "银联信用卡",
+    "issuer": null,
+    "online_rebate_percent": null,
+    "rule_text": null,
+    "source_url": null,
+    "captured_at": null,
+    "screenshot": null
+  },
+  {
+    "card_id": "c_fps",
+    "network": "fps",
+    "label": "转数快（银行账户）",
+    "issuer": null,
+    "online_rebate_percent": null,
+    "rule_text": null,
+    "source_url": null,
+    "captured_at": null,
+    "screenshot": null
+  }
+]

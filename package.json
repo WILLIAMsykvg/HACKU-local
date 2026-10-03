@@ -1,0 +1,32 @@
+{
+  "name": "hacku2026-fintech-1",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HacKU 2026 · FinTech 第 1 题 · 个人背景不出手机，只出签过名的是非结论；分数由银行重算；结论只能让交易更严",
+  "engines": {
+    "node": ">=23.6.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node src/demo/run.ts",
+    "dev": "node --env-file-if-exists=.env --watch src/server/server.ts",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build": "vite build --config web/vite.config.ts",
+    "start": "node --env-file-if-exists=.env src/server/server.ts",
+    "snapshot": "node src/shop/snapshot.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  }
+}

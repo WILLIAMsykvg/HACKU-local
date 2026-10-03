@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+html {
+  font-family: "Inter", "PingFang HK", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}

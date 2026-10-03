@@ -4,6 +4,12 @@
 
 HacKU 2026 · FinTech 第 1 题「Give a Machine a Wallet – Agentic Commerce」（HKT 赞助）· 队伍 23「Local deployment」
 
+**Live demo:** https://hacku-local-deployment.onrender.com (free tier, about a minute to wake after 15 idle minutes) · **Judges, start here:** [`docs/judge-guide.md`](docs/judge-guide.md) · **Observed rates and fees:** [`docs/sources.md`](docs/sources.md)
+
+| Real | Simulated | Not built |
+|---|---|---|
+| Products, prices, stock and cart links from three live Hong Kong Shopify stores (read-only, HKD enforced) · location compared on the device using its real position · Ed25519 signatures and verification · bank-side score recompute · rule engine · one-time credential · Stripe test mode on Mastercard and UnionPay · hash-chained log | Face ID / fingerprint · the location answer is signed by the device itself (a carrier would sign it in production) · merchant purchase history · settlement uses Stripe test mode, no real money | Real issuer integration · real passkeys · placing real orders |
+
 > 接手开发先读 [`docs/接手说明.md`](docs/接手说明.md)：当前进度、已上线的地址、还没做的事。
 
 **English summary.** A shopping agent finds a real product in real Hong Kong Shopify stores and puts it in the store's real cart — but it has no payment tool and never sees the user's location, purchase history or card. Before any money moves, three issuers each answer one fixed yes/no question and sign it: *is the device near the ship-to address* (computed on the device; coordinates never leave it), *how recently did the holder strongly authenticate* (bank), and *does this order match the store's listing and the buyer's habits* (merchant). The phone combines the signed answers into a score using a public table; the bank re-computes it from the signatures and never trusts the stated number. Attestations can only make a transaction stricter — the existing rule engine's caps, mandate expiry and cooldowns always win. Every step is written to a hash-chained log.
@@ -22,7 +28,7 @@ HacKU 2026 · FinTech 第 1 题「Give a Machine a Wallet – Agentic Commerce�
 npm install
 npm run build        # 打包前端到 web/dist
 npm start            # http://localhost:8787
-npm test             # 61 条测试，不需要网络
+npm test             # 64 条测试，不需要网络
 ```
 
 开发时：`npm run dev`（服务器，改代码自动重启）+ `npm run dev:web`（前端，http://localhost:5173）。

@@ -4,5 +4,5 @@ dist/
 .env.*
 scratch/
 handoff/
-competitors/
+.cursor/
 *.exe

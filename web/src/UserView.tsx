@@ -62,7 +62,7 @@ function scenes(): Scene[] {
       title: t("超出你设的上限", "Over your limit"),
       narration: t(
         "代理要买 4 个，共 HK$876。就算三方证明都通过，规则引擎也会按你设的单笔上限 HK$800 拒绝。证明只能让交易更严，突破不了上限。",
-        "The agent wants to buy 4, HK$876 in total. Even with every answer checking out, the rule engine declines it against your HK$800 per-transaction cap. Proofs can only make a payment stricter; they can't lift a limit.",
+        "The agent wants to buy 4, HK$876 in total. However high the proof score, the rule engine declines it against your HK$800 per-transaction cap. Proofs can only make a payment stricter; they can't lift a limit.",
       ),
       prompt: t("帮我买 4 个 HK$300 以内的 65W 充电器", "Buy 4 65W chargers under HK$300 each"),
     },

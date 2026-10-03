@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
 html {
-  font-family: "Inter", "PingFang HK", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "PingFang HK", "PingFang TC",
+    "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  background: #f5f5f7;
 }

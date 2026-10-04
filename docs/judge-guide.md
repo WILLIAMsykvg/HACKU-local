@@ -1,4 +1,4 @@
-# Judge guide
+# ProofPay — judge guide
 
 HacKU 2026 · FinTech Problem 1 "Give a Machine a Wallet – Agentic Commerce" (The Club by HKT) · Team 23 "Local Deployment"
 

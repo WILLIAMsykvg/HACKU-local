@@ -1,122 +1,114 @@
-# ProofPay：代理替你付款，个人背景不出手机
+# ProofPay: your agent pays, your personal context stays on your phone
 
-> **过去的支付用隐私换安全；我们让安全在本地被证明，隐私留在原地。**
+> **Payments used to trade privacy for safety. We prove safety locally and leave privacy where it is.**
 
-HacKU 2026 · FinTech 第 1 题「Give a Machine a Wallet – Agentic Commerce」（HKT 赞助）· 队伍 23「Local deployment」
+HacKU 2026 · FinTech Problem 1 "Give a Machine a Wallet – Agentic Commerce" (The Club by HKT) · Team 23 "Local Deployment"
 
-**Live demo:** https://hacku-local-deployment.onrender.com (free tier, about a minute to wake after 15 idle minutes) · **Judges, start here:** [`docs/judge-guide.md`](docs/judge-guide.md) · **Observed rates and fees:** [`docs/sources.md`](docs/sources.md)
+**Live demo:** https://hacku-local-deployment.onrender.com (free tier, about a minute to wake after 15 idle minutes) · **Judges, start here:** [`docs/judge-guide.md`](docs/judge-guide.md) · **Demo video:** [release `demo-video`](https://github.com/WILLIAMsykvg/HACKU-local/releases/tag/demo-video) · **Observed rates and fees:** [`docs/sources.md`](docs/sources.md)
+
+The web app has an **EN / 中文** switch in the top bar. DeepSeek mode needs the access code given on the submission form; scripted mode needs none.
 
 | Real | Simulated | Not built |
 |---|---|---|
 | Products, prices, stock and cart links from three live Hong Kong Shopify stores (read-only, HKD enforced) · location compared on the device using its real position · Ed25519 signatures and verification · bank-side score recompute · rule engine · one-time credential · Stripe test mode on Mastercard and UnionPay · hash-chained log | Face ID / fingerprint · the location answer is signed by the device itself (a carrier would sign it in production) · merchant purchase history · settlement uses Stripe test mode, no real money | Real issuer integration · real passkeys · placing real orders |
 
-**English summary.** A shopping agent finds a real product in real Hong Kong Shopify stores and puts it in the store's real cart — but it has no payment tool and never sees the user's location, purchase history or card. Before any money moves, three issuers each answer one fixed yes/no question and sign it: *is the device near the ship-to address* (computed on the device; coordinates never leave it), *how recently did the holder strongly authenticate* (bank), and *does this order match the store's listing and the buyer's habits* (merchant). The phone combines the signed answers into a score using a public table; the bank re-computes it from the signatures and never trusts the stated number. Attestations can only make a transaction stricter — the existing rule engine's caps, mandate expiry and cooldowns always win. Every step is written to a hash-chained log.
+## In one paragraph
 
----
+A shopping agent finds a real product in real Hong Kong Shopify stores and puts it in the store's real cart — but it has no payment tool and never sees the user's location, purchase history or card. Before any money moves, three issuers each answer one fixed yes/no question and sign it: *is the device near the ship-to address* (computed on the device; coordinates never leave it), *how recently did the holder strongly authenticate* (bank), and *does this order match the store's listing and the buyer's habits* (merchant). The phone combines the signed answers into a score using a public table; the bank recomputes it from the signatures and never trusts the stated number. Attestations can only make a transaction stricter — the rule engine's caps, mandate expiry and cooldowns always win. Every step is written to a hash-chained log.
 
-## 一句话
+## Run it
 
-代理替你付款前，定位、银行、商户各自只回答一个固定的是非题并签名。手机按公开表合成分数，银行自己重算。个人背景不出手机，只出签过名的结论。结论只能让交易更严，突破不了你设的上限。
-
-## 跑起来
-
-要求 Node.js **≥ 23.6**（直接跑 TypeScript）。
+Requires Node.js **≥ 23.6** (runs TypeScript directly).
 
 ```bash
 npm install
-npm run build        # 打包前端到 web/dist
+npm run build        # bundle the front end into web/dist
 npm start            # http://localhost:8787
-npm test             # 64 条测试，不需要网络
+npm test             # 64 tests, no network needed
 ```
 
-开发时：`npm run dev`（服务器，改代码自动重启）+ `npm run dev:web`（前端，http://localhost:5173）。
+Development: `npm run dev` (server, restarts on change) + `npm run dev:web` (front end, http://localhost:5173).
 
-可选的环境变量放在根目录 `.env`（已被 `.gitignore` 排除）：
+Optional environment variables go in `.env` at the root (excluded by `.gitignore`):
 
-| 名称 | 作用 | 不配置时 |
+| Name | Purpose | Without it |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | DeepSeek 模式的代理 | 只有脚本模式 |
-| `TAVILY_API_KEY` | 在白名单网店里联网搜索 | 用本地快照 `data/catalog.snapshot.json` |
-| `SERPAPI_KEY` | 全网参考价用 Google Shopping（香港） | 用 Tavily 摘要，或不显示 |
-| `STRIPE_SECRET_KEY` | `sk_test_` 开头，Stripe 测试模式结算 | 模拟结算 |
-| `DEMO_ACCESS_CODE` | 公开部署时，DeepSeek 模式要输入的访问码 | 不需要访问码 |
-| `PORT` | 端口 | 8787 |
+| `DEEPSEEK_API_KEY` | DeepSeek-mode agent | Scripted mode only |
+| `TAVILY_API_KEY` | Live search within the allow-listed stores | Local snapshot `data/catalog.snapshot.json` |
+| `SERPAPI_KEY` | Web-wide reference prices via Google Shopping (Hong Kong) | Tavily snippets, or none |
+| `STRIPE_SECRET_KEY` | `sk_test_…`, Stripe test-mode settlement | Simulated settlement |
+| `DEMO_ACCESS_CODE` | Access code for DeepSeek mode on a public deployment | No code needed |
+| `PORT` | Port | 8787 |
 
-## 一笔交易怎么走
+## How one transaction works
 
-1. **代理**（`src/agent/`）只有五个工具：在白名单网店搜索、比价、确认此刻价格和库存、放进店家的真购物车、交给手机和银行验证。没有付款工具；没比价过的商品放不进购物车。脚本模式每一步写死，演示用；DeepSeek 模式由模型自己决定，每笔最多 10 次工具调用。
-2. **真实网店**（`src/shop/`）：只用香港 Shopify 店公开开放的数据——商品的价格、库存、规格，以及购物车链接。不提交订单、不填付款资料、不绕过任何防护，每家店的请求有最小间隔。白名单有电子配件店和礼品店，类别按店决定。
-3. **比价**（`src/shop/compare.ts`，规则公开）：先排除缺货、超预算、规格不符的，写明各自差在哪；剩下的按总价从低到高排；相差不到 HK$10 时熟客店优先（少问你一次）；卖家付费不影响排序。附覆盖报告（每家白名单店搜到没有），以及全网参考价（`SERPAPI_KEY` 时用 Google Shopping，否则用 Tavily 摘要；只看不买）。
-4. **发证方**（`src/attest/`）各自只回答一个固定问题，用 Ed25519 签名：
+1. **Agent** (`src/agent/`) has exactly five tools: search the allow-listed stores, compare, re-check live price and stock, put the item in the store's real cart, hand the plan to the phone and the bank. No payment tool; an item that wasn't compared can't go in the cart. Scripted mode is fixed for the demo; in DeepSeek mode the model decides, with at most 10 tool calls per order.
+2. **Real stores** (`src/shop/`): only public Hong Kong Shopify data — price, stock, variants and cart links. No orders placed, no payment details entered, nothing bypassed; requests to each store are rate-limited.
+3. **Comparison** (`src/shop/compare.ts`, public rules): drop out-of-stock, over-budget and wrong-spec items and say why; rank the rest by total price; within HK$10, prefer a store the user has used before (one fewer question); paid placement never changes the rank. Includes a per-store coverage report and a web-wide reference price (look, don't buy).
+4. **Issuers** (`src/attest/`) each answer one fixed question, signed with Ed25519:
 
-   | 发证方 | 固定问题 | 演示里是 |
+   | Issuer | Fixed question | In the demo |
    |---|---|---|
-   | 定位 | 此刻是否在收货地 5 公里内 | **在浏览器里用设备真实位置本地比对**，设备自己的钥匙签（WebCrypto）。坐标不离开设备。正式版由运营商签 |
-   | 银行 | 本人最近一次强认证的时间 | 模拟的指纹 / 面容按钮。强度随时间衰减：2 小时内强、12 小时内中、24 小时内弱、之后失效 |
-   | 商户 | 这一单的商品、价格、库存是否与本店此刻一致 | **当场重新读店里的公开数据**。对不上直接不发凭证 |
-   | 商户 | 这一单是否符合此人在本店的购买习惯 | 规则是真的，购买记录是演示数据 |
+   | Location | Is the device within 5 km of the ship-to address right now? | **Compared in the browser using the device's real position**, signed with the device's own key (WebCrypto). Coordinates never leave the device. In production a carrier would sign it |
+   | Bank | When did the holder last strongly authenticate? | Simulated fingerprint / Face ID button. Strength fades: strong within 2 h, medium 12 h, weak 24 h, then gone |
+   | Merchant | Do item, price and stock match the store right now? | **Re-reads the store's public data on the spot.** A mismatch means no credential |
+   | Merchant | Does this order fit the buyer's habits at this store? | The rule is real; the purchase history is demo data |
 
-5. **手机**把结论原样交出，附上按公开表（`src/attest/questions.ts`）算出的分数。
-6. **银行**（`src/attest/verify.ts`）逐项检查：每题一份、钥匙在信任名单里、签名对得上、签的是这一单（订单编号覆盖商户、商品、数量、金额、收货地）、问题在公开表里、价格库存一致、分数重算一致。过期的那一份按缺失计 0 分。
-7. **规则引擎**（`src/engine/`，莫森写的，规格见 `docs/rules.md`）照常判定：单笔上限、7 天上限、首单冷静期、1 秒内点同意不算……**最终通道 = 引擎和证明层中更严的那个**。证明不成立一律拒绝，不发凭证。
-8. **付款**（`src/pay/`）：放行后发一次性凭证，锁死商户和金额。选卡是规则不是模型：第一次光顾的商户不走转数快（付出去追不回）；只有带出处和截图时间的回赠条款才参与比较，否则不按回赠选。结算走 Stripe 测试模式或模拟。
-9. **日志**（`src/log/chain.ts`）：每一步写进哈希链。先记下代理被允许做什么，再记下它被拦住。不写坐标、购买明细、密钥。
+5. **Phone** passes the answers on unchanged, with a score computed from the public table (`src/attest/questions.ts`).
+6. **Bank** (`src/attest/verify.ts`) checks each one: one answer per question, key on the trusted list, valid signature, signed for this order (the order hash covers merchant, item, quantity, amount and ship-to), question in the public table, price and stock consistent, score recomputes. An expired answer counts as missing (0 points).
+7. **Rule engine** (`src/engine/`, spec in `docs/rules.md`) decides as usual: per-transaction cap, 7-day cap, first-purchase cooling-off, a consent click within 1 second doesn't count… **Final channel = the stricter of the engine and the proof layer.** A failed proof always declines; no credential is issued.
+8. **Payment** (`src/pay/`): once approved, a one-time credential locked to this merchant and amount is issued. Card choice is a rule, not a model: never FPS for a first-time merchant (it can't be pulled back); rebates count only with a source and capture time. Settlement uses Stripe test mode or is simulated.
+9. **Log** (`src/log/chain.ts`): every step goes into a hash chain — first what the agent was allowed to do, then where it was stopped. No coordinates, purchase details or keys.
 
-## 演示里可以试的攻击
+## Attacks you can try in the demo
 
-| 攻击 | 结果 |
+| Attack | Result |
 |---|---|
-| 商品页藏了劫持指令，代理把收货地改成深圳仓 | 定位答「否」，停下来问你一次，并说出原因 |
-| 结论签完之后再改收货地 | 订单编号对不上，拒绝 |
-| 重放上一单的结论 | 订单编号对不上，拒绝 |
-| 丢掉回答为「否」的结论 | 缺的按 0 分，照样变严 |
-| 把分数改成 100 | 银行重算对不上，拒绝 |
-| 买 4 个（HK$876） | 超过单笔上限 HK$800，分数再高也拒绝 |
-| 把时钟拨到强认证 13 小时后 | 授权变弱，进冷静期 |
-| 一键撤销授权 | 授权过期，拒绝 |
+| A product page hides an instruction; the agent changes the ship-to to a Shenzhen warehouse | Location answers "no"; asks you once and says why |
+| Change the ship-to after the answers are signed | Order hash doesn't match; declined |
+| Replay the previous order's answers | Order hash doesn't match; declined |
+| Drop the answers that say "no" | Missing counts as 0; stricter, not looser |
+| Change the score to 100 | Bank recompute differs; declined |
+| Buy 4 (HK$876) | Over the HK$800 per-transaction cap; declined whatever the score |
+| Move the clock 13 hours past strong authentication | Authorisation weakens; cooling-off |
+| Revoke the mandate in one tap | Mandate expired; declined |
 
-## 不变量
+## Invariants
 
-1. 引擎和证明层不调用模型，任何测试都不需要网络。
-2. 引擎和证明层不读外部状态，`now` 也是参数。
-3. 每一次判定都写一条日志。
-4. 证明层只能让交易更严。
-5. 代理没有付款工具。
+1. The engine and proof layer never call a model; no test needs the network.
+2. The engine and proof layer read no external state; `now` is a parameter.
+3. Every decision writes one log entry.
+4. The proof layer can only make a transaction stricter.
+5. The agent has no payment tool.
 
-## 目录
+## Layout
 
 ```
 src/
-  engine/   规则引擎（R-00 至 R-15）
-  attest/   证明层：固定问题、签名、计分、验证、接到引擎
-  agent/    代理：DeepSeek 调用、四个工具、外层循环、脚本模式
-  shop/     白名单网店、Shopify 公开数据、Tavily 搜索、本地快照
-  pay/      选卡规则、一次性凭证、Stripe 测试模式
-  server/   node:http 服务器、每个访客一套演示状态
-  log/      规范化、哈希链
-web/        前端（Vite、React、Tailwind）。直接复用 src/ 里的计分和规范化代码
-tests/      engine T01–T21 · chain C01–C07 · attest A01–A21 · pay-agent P01–P12（含比价）
-data/       本地商品快照、卡片条款（回赠数字只填亲自截图过的）
-docs/       引擎规格、计划书
+  engine/   rule engine (R-00 to R-15)
+  attest/   proof layer: fixed questions, signing, scoring, verification, engine hookup
+  agent/    agent: DeepSeek calls, five tools, outer loop, scripted mode
+  shop/     allow-listed stores, Shopify public data, Tavily search, local snapshot
+  pay/      card-choice rule, one-time credential, Stripe test mode
+  server/   node:http server, one demo state per visitor
+  log/      canonicalisation, hash chain
+web/        front end (Vite, React, Tailwind); reuses scoring and canonicalisation from src/
+tests/      engine T01–T21 · chain C01–C07 · attest A01–A21 · pay-agent P01–P15 (incl. comparison)
+data/       local product snapshot, card terms (rebate figures only from our own screenshots)
+docs/       judge guide, engine spec, plan, sources
 ```
 
-## 哪些是真的，哪些是模拟的
+## Known limits
 
-- **真的：** 商品、价格、库存、购物车链接（真实香港 Shopify 网店）；定位比对（设备真实位置，本地计算）；Ed25519 签名与验签；分数重算；规则引擎；一次性凭证；哈希链。
-- **模拟的：** 指纹 / 面容确认；定位结论由设备自证（正式版由运营商签）；商户的购买记录；结算（Stripe 测试模式或模拟），不涉及真钱。
-- **没做：** 真的发卡行接入、真的通行密钥、真实下单。
+- If the phone is compromised, a device-signed location can be faked. In production a carrier signs it; even faked, it can't get past the mandate's caps.
+- Shopify product data has no shipping fee, so quotes count shipping as HK$0; the checkout page is authoritative.
+- Score-table weights are set by hand, not trained.
+- If the user is present, everything matches and they knowingly approve a scam, the system lets it through. We guarantee the cap, not zero loss.
+- All rates, rebates and point values must be screenshotted and timestamped by the team; nothing is estimated.
 
-## 已知边界
+## Credits
 
-- 手机被控制时，设备自证的定位可以造假。正式版由运营商签；就算造假，也突破不了授权上限。
-- 运费 Shopify 商品数据里没有，报价按 0 计，以结账页为准。
-- 加分表的权重是人设的，不是训练出来的。
-- 用户本人在场、情况相符、清醒地被骗时，系统会放行。我们保证的是上限，而不是零损失。
-- 所有费率、回赠、积分价值必须由队伍亲自截图并打时间戳，不能估。
-
-## 出处
-
-- 开源库：React、Vite、Tailwind CSS、TypeScript（均为 MIT 许可）。引擎、证明层、服务器只用 Node 自带模块。
-- 服务：DeepSeek API（代理）、Tavily Search API（发现商品页）、Shopify 店铺公开的 `/products/*.js`、`/products.json`、`/cart/*` 端点、Stripe 测试模式。
-- 白名单网店：THINKTHING STUDIO（www.thinkthingstudio.com）、GP Batteries Hong Kong（hk.gpbatteries.com）、StephyDesignHK（www.stephydesignhk.com），用 `/meta.json` 核对过店址在香港、币种港币。
-- 比价的设计参考了 [NorthCinder](https://github.com/AIXploits/northcinder)：推荐理由、淘汰原因、覆盖报告，看到的报价要经商户正式接口确认才能下单。
+- Open-source libraries: React, Vite, Tailwind CSS, TypeScript (all MIT). The engine, proof layer and server use only Node built-ins.
+- Services: DeepSeek API (agent), Tavily Search API (finding product pages), SerpAPI (Google Shopping reference prices), Shopify stores' public `/products/*.js`, `/products.json` and `/cart/*` endpoints, Stripe test mode.
+- Allow-listed stores: THINKTHING STUDIO (www.thinkthingstudio.com), GP Batteries Hong Kong (hk.gpbatteries.com), StephyDesignHK (www.stephydesignhk.com); store country and currency checked via `/meta.json`.
+- The comparison design draws on [NorthCinder](https://github.com/AIXploits/northcinder): recommendation reasons, rejection reasons, coverage report, and seen prices confirmed through the merchant's own interface before buying.

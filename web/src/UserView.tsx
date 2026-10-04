@@ -208,6 +208,14 @@ function Hero() {
           "The agent compares prices and fills the cart, but never sees your location or purchase history. Before paying, location, bank and store each sign one yes/no answer; the bank recomputes the score itself, and the answers can only make a payment stricter.",
         )}
       </p>
+      <a
+        href="https://github.com/WILLIAMsykvg/HACKU-local/releases/tag/demo-video"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 inline-block text-[15px] font-medium text-[#0071e3] hover:underline"
+      >
+        {t("看 3 分钟演示视频 →", "Watch the 3-minute video →")}
+      </a>
     </div>
   );
 }
